@@ -5,43 +5,34 @@ const app = express();
 
 app.use(json());
 
-
-
 const customers = [];
 
 function verifyIfExistAccountCPF(request, response, next) {
   const { cpf } = request.headers;
 
-  const customer = customers.find(customer => customer.cpf === cpf);
+  const customer = customers.find((customer) => customer.cpf === cpf);
 
   if (!customer)
     return response.status(400).json({ error: "Customer not found" });
 
   request.customer = customer;
 
-  next(); 
+  next();
 }
 
-function getBalance(statement){
+function getBalance(statement) {
+  const balance = statement.reduce((acc, operation) => {
+    if (operation.type == "credit") {
+      return (acc += operation.amount);
+    } else {
+      return (acc -= operation.amount);
+    }
+  }, 0);
 
-
-    const balance = statement.reduce((saldoAcomulado, currenValue) => {
-
-
-        if(currenValue.type === 'credit') {
-      
-           return  saldoAcomulado + currenValue.amount
-        }else{
-            return saldoAcomulado - currenValue.mount
-        }
-    }, 0)
-
-  
-
-    return balance
+  return balance;
 }
 
-app.get("/statement", verifyIfExistAccountCPF,  (request, response) => {
+app.get("/statement", verifyIfExistAccountCPF, (request, response) => {
   //usando um Middleware para verficar se cpf existe
 
   const customer = request.customer;
@@ -49,34 +40,36 @@ app.get("/statement", verifyIfExistAccountCPF,  (request, response) => {
   return response.json(customer.statement);
 });
 
+app.get("/statement/date", verifyIfExistAccountCPF, (request, response) => {
+  const { customer } = request;
 
-app.get('/statement/date', verifyIfExistAccountCPF, (request, response) => {
+  const { date } = request.query;
 
-    const  { customer }  = request
+  const formatedDate = new Date(date + " 00:00");
 
-    const { date } = request.query
+  const resultStatement = customer.statement.filter(
+    (statement) =>
+      statement.created_at.toDateString() ===
+      new Date(formatedDate).toDateString()
+  );
 
-    const  formatedDate = new Date(date + " 00:00")
+  return response.status(200).json(resultStatement);
+});
 
-    const resultStatement = customer.statement.filter( statement => statement.created_at.toDateString()
-    === new Date(formatedDate).toDateString()
-    )
-    
-   
+app.get("/account", verifyIfExistAccountCPF, (request, response) => {
+  const { customer } = request;
 
-    return response.status(200).json(resultStatement)
-})
+  return response.json(customer);
+});
 
+app.get("/balance", verifyIfExistAccountCPF, (request, response) => {
+  const { customer } = request;
 
+  const balance = getBalance(customer.statement);
 
-app.get('/account' , verifyIfExistAccountCPF, (request, response) => {
+  return response.json(balance);
+});
 
-  const { customer } = request
-  
-  return response.json(customer)
-
-})
- 
 app.post("/account", (request, response) => {
   const { name, cpf } = request.body;
 
@@ -94,7 +87,6 @@ app.post("/account", (request, response) => {
     statement: [],
   });
 
- 
   return response.status(201).send();
 });
 
@@ -114,45 +106,47 @@ app.post("/deposit", verifyIfExistAccountCPF, (request, response) => {
   return response.status(201).send();
 });
 
+app.post("/withdraw", verifyIfExistAccountCPF, (request, response) => {
+  const { amount } = request.body;
+  const { customer } = request;
 
-app.post('/withdraw', verifyIfExistAccountCPF, (request, response) => {
+  const balance = getBalance(customer.statement);
+  console.log(balance);
+  if (balance < amount) {
+    return response.status(400).json({ error: "Insufficient Funds!" });
+  }
 
-    const  { amount } = request.body
-    const {customer} = request
+  const statementOperation = {
+    amount,
+    created_at: new Date(),
+    type: "debit",
+  };
 
-    const balance = getBalance(customer.statement)
-    console.log(balance)
-    if(balance < amount ) {
-        return response.status(400).json({error : "Insufficient Funds!"})
-    }
+  customer.statement.push(statementOperation);
 
-    const statementOperation = {
-        amount, 
-        created_at: new Date(),
-        type: "debit",
-      };
-    
+  return response.status(201).send();
+});
 
-      customer.statement.push(statementOperation)
+app.put("/account", verifyIfExistAccountCPF, (request, response) => {
+  const { name } = request.body;
 
-      return response.status(201).send()
-})
+  const { customer } = request;
 
-app.put('/account', verifyIfExistAccountCPF, (request, response) => {
+  customer.name = name;
 
-  const { name } = request.body
+  return response.status(201).send();
+});
 
-  const { customer } = request
+app.delete("/account", verifyIfExistAccountCPF, (request, response) => {
+  const { customer } = request;
 
-  customer.name = name 
+  const customerDeleted = customers.splice(customer, 1);
 
-  return response.status(201).send()
-})  
+  console.log(customerDeleted);
 
+  return response.status(201).json(customerDeleted);
+});
 
-
- 
 app.listen(3333, () => {
   console.log("🚀 app is running ");
 });
- 
