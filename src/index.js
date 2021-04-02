@@ -1,4 +1,5 @@
 const { json } = require("body-parser");
+const { response } = require("express");
 const express = require("express");
 const { v4: uuid } = require("uuid");
 const app = express();
@@ -9,21 +10,28 @@ app.use(json())
 const customers = [];
 
 
-
-app.get('/statement',(request,  response) => {
-
-    // buscar o extrato do cliente pelo cpf que esta na route params
-    //app.get('/statement/:cpf)
-
-    // buscar o extrato do cliente pelo cpf que esta no request.headers
-
+function verifyIfExistAccountCPF(request, response, next){
 
     const { cpf } = request.headers
 
-    const customer  = customers.find((customer) => customer.cpf == cpf)
-    
+    const  customer = customers.find(customer => customer.cpf === cpf)
+
     if(!customer) return response.status(400).json({error : "Customer not found"})
-     
+
+    request.customer = customer
+
+    next()
+
+}
+
+
+
+app.get('/statement',verifyIfExistAccountCPF, (request,  response) => { 
+
+    //usando um Middleware para verficar se cpf existe
+
+    const customer = request.customer
+
     return response.json(customer.statement)
 
 })
