@@ -11,9 +11,12 @@ const customers = [];
 
 
 app.post("/account", (request, response) => {
-  // criar uma conta con os dados  {cpf , name , id , statemant }
 
   const { name, cpf } = request.body;
+
+  const customersAlreadyExists = customers.some(customer => customer.cpf === cpf)
+
+  if(customersAlreadyExists) return response.status(400).json({error : "costumer already exists!" })
 
   customers.push({
     id: uuid(),
@@ -21,6 +24,8 @@ app.post("/account", (request, response) => {
     cpf,
     statement: [],
   });
+
+  console.log(customers)
 
   return response.status(201).send();
 });
