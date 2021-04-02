@@ -10,6 +10,24 @@ const customers = [];
 
 
 
+app.get('/statement',(request,  response) => {
+
+    // buscar o extrato do cliente pelo cpf que esta na route params
+    //app.get('/statement/:cpf)
+
+    // buscar o extrato do cliente pelo cpf que esta no request.headers
+
+
+    const { cpf } = request.headers
+
+    const customer  = customers.find((customer) => customer.cpf == cpf)
+    
+    if(!customer) return response.status(400).json({error : "Customer not found"})
+     
+    return response.json(customer.statement)
+
+})
+
 app.post("/account", (request, response) => {
 
   const { name, cpf } = request.body;
@@ -25,7 +43,6 @@ app.post("/account", (request, response) => {
     statement: [],
   });
 
-  console.log(customers)
 
   return response.status(201).send();
 });
@@ -33,3 +50,5 @@ app.post("/account", (request, response) => {
 app.listen(3333, () => {
   console.log("🚀 app is running ");
 });
+
+
